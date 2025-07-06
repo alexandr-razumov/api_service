@@ -1,6 +1,10 @@
 package com.example.api_service.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.persistence.Column;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -15,20 +19,10 @@ import java.util.UUID;
 @AllArgsConstructor
 @Schema(description = "API Data Response")
 public class ApiDataResponse {
-    @Schema(description = "Unique identifier")
-    private UUID id;
-    
-    @Schema(description = "Creation timestamp")
-    private LocalDateTime createdAt;
-    
-    @Schema(description = "Success status")
-    private boolean success;
-    
-    @Schema(description = "API response payload")
+    @Schema(description = "API Response",
+            example = "{\"USD\":50000,\"EUR\":45000}")
     private String payload;
-    
-    // Конструктор для создания объекта только с payload
-    public ApiDataResponse(String payload) {
-        this.payload = payload;
-    }
+
+    @Schema(description = "Created Date")
+    private LocalDateTime createdAt;
 }

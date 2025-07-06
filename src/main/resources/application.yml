@@ -25,8 +25,12 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     enabled: true
-    config-url: /v3/api-docs/swagger-config
-    url: /v3/api-docs
+    disable-swagger-default-url: true
+    display-request-duration: true
+    doc-expansion: none
+    filter: true
+    show-extensions: true
+    show-common-extensions: true
   packages-to-scan: com.example.api_service.controller
 
 # Логирование

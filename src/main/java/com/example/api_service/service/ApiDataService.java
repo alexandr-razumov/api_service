@@ -1,6 +1,7 @@
 package com.example.api_service.service;
 
 import com.example.api_service.config.KafkaConfig;
+import com.example.api_service.dto.ApiDataRequest;
 import com.example.api_service.dto.ApiDataResponse;
 import com.example.api_service.repository.ApiDataRepository;
 import com.example.api_service.mapper.ApiDataMapper;
@@ -18,6 +19,8 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -33,48 +36,39 @@ public class ApiDataService {
     private String apiUrl;
 
     @Scheduled(fixedRate = 60000)
-    @Retryable(maxAttempts = 3, backoff = @Backoff(delay = 1000, multiplier = 2.0))
+    @Retryable(backoff = @Backoff(delay = 1000, multiplier = 2.0))
     public void pollApi() {
         log.info("Starting API poll for URL: {}", apiUrl);
-        ApiDataResponse apiDataResponse;
+        ApiDataRequest request;
         boolean success;
         String kafkaTopic;
 
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(apiUrl, String.class);
-            apiDataResponse = new ApiDataResponse(response.getBody());
+            request = new ApiDataRequest(response.getBody());
             success = true;
             kafkaTopic = kafkaConfig.apiDataTopic().name();
             log.info("API call successful, status: {}", response.getStatusCode());
         } catch (Exception e) {
-            apiDataResponse = new ApiDataResponse(e.getMessage());
+            request = new ApiDataRequest(e.getMessage());
             success = false;
             kafkaTopic = kafkaConfig.apiErrorsTopic().name();
             log.error("API call failed: {}", e.getMessage(), e);
         }
 
-        ApiDataEntity entity = apiDataMapper.toApiDataEntity(apiDataResponse);
+        ApiDataEntity entity = apiDataMapper.toApiDataEntity(request);
         entity.setCreatedAt(LocalDateTime.now());
         entity.setSuccess(success);
         repository.save(entity);
-        kafkaTemplate.send(kafkaTopic, apiDataResponse.getPayload());
+        kafkaTemplate.send(kafkaTopic, UUID.randomUUID().toString(), request.getPayload());
         log.info("Data saved to database and sent to Kafka topic: {}", kafkaTopic);
 
         if (!success) {
-            throw new RuntimeException(apiDataResponse.getPayload());
+            throw new RuntimeException(request.getPayload());
         }
     }
 
-    public List<ApiDataEntity> findTop10ByOrderByCreatedAtDesc() {
-        return repository.findTop10ByOrderByCreatedAtDesc();
-    }
-
     public List<ApiDataResponse> findTop10RecordsAsResponse() {
-        List<ApiDataResponse> responses = repository.findTop10ByOrderByCreatedAtDesc()
-                .stream()
-                .map(apiDataMapper::toApiDataResponse)
-                .toList();
-        log.debug("Retrieved {} records from database", responses.size());
-        return responses;
+        return apiDataMapper.toApiDataResponseList(repository.findTop10ByOrderByCreatedAtDesc());
     }
 }
